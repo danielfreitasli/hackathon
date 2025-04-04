@@ -115,7 +115,7 @@ Deve retornar no json uma lista de personas e a estrutura deve exatamente esta:
         return {"erro": "Resposta da IA inválida"}
 
 @app.post("/insights")
-async def gerar_insights(data: InsightRequest):
+def gerar_insights(data: InsightRequest):
     contexto = coletar_contexto_para_ia(data.dominio_loja)
 
     prompt = f"""
