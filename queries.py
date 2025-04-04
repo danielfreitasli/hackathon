@@ -52,8 +52,17 @@ ORDER BY
 LIMIT 500;
 """
 GET_CONTA_ID_POR_DOMINIO = """
-SELECT conta_id 
+SELECT conta_id
 FROM lojaintegrada.plataforma_tb_conta
+WHERE conta_loja_dominio = '{dominio}'
+LIMIT 1;
+"""
+
+GET_DETALHES_CONTA_POR_DOMINIO = """
+SELECT tc.conta_id , tc.conta_loja_nome, tc.conta_loja_descricao, ta.atividade_nome
+FROM lojaintegrada.plataforma_tb_conta tc
+LEFT JOIN lojaintegrada.plataforma_tb_conta_atividade tca ON tca.conta_id = tc.conta_id
+LEFT JOIN lojaintegrada.plataforma_tb_atividade ta ON ta.atividade_id = tca.atividade_id
 WHERE conta_loja_dominio = '{dominio}'
 LIMIT 1;
 """

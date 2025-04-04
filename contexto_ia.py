@@ -1,9 +1,14 @@
 # contexto_ia.py
 
-from db import fetch_one, fetch_all
-from queries import GET_PEDIDOS_ULTIMOS_30_DIAS, GET_CONTA_ID_POR_DOMINIO
+from db import fetch_one, fetch_row, fetch_all
+from queries import (
+    GET_PEDIDOS_ULTIMOS_30_DIAS,
+    GET_CONTA_ID_POR_DOMINIO,
+    GET_DETALHES_CONTA_POR_DOMINIO,
+)
 from analytics import gerar_insights_para_persona
 import pandas as pd
+
 
 def formatar_amostra_para_prompt(amostra):
     linhas = []
@@ -12,6 +17,7 @@ def formatar_amostra_para_prompt(amostra):
         linha = "- " + ", ".join(campos)
         linhas.append(linha)
     return "\n".join(linhas)
+
 
 def coletar_contexto_para_ia(dominio_loja: str) -> str:
     query_conta = GET_CONTA_ID_POR_DOMINIO.format(dominio=dominio_loja)
@@ -30,6 +36,42 @@ def coletar_contexto_para_ia(dominio_loja: str) -> str:
 
     # Enviar os dados brutos e sumarizados para a IA inferir o resto
     return (
+        f"Estatísticas da loja:\n"
+        f"- Ticket médio: R$ {insights['ticket_medio_produtos']}\n"
+        f"- Produtos mais vendidos: {[p[0] for p in insights['produtos_mais_vendidos']]}\n"
+        f"- Top 3 clientes: {list(insights['top_clientes'].items())}\n"
+        f"- Distribuição por gênero: {insights['pedidos_por_genero']}\n"
+        f"- Campanhas mais ativas: {list(insights['campanhas_mais_ativas'].keys())}\n"
+        f"- Dias com mais pedidos: {list(insights['dias_com_mais_pedidos'].keys())}\n"
+        f"- Horas com mais pedidos: {list(insights['horas_com_mais_vendas'].keys())}\n"
+        f"\nExemplos reais de pedidos:\n{formatar_amostra_para_prompt(amostra)}"
+    )
+
+
+def novo_coletar_contexto_para_ia(dominio_loja: str) -> str:
+    query_conta = GET_DETALHES_CONTA_POR_DOMINIO.format(dominio=dominio_loja)
+    conta = fetch_row(query_conta)
+    if not conta:
+        return "Não foi possível encontrar a loja com esse domínio."
+    conta_id = conta[0]
+    conta_nome = conta[1]
+    conta_descricao = conta[2]
+    conta_atividade = conta[3]
+
+    query = GET_PEDIDOS_ULTIMOS_30_DIAS.format(conta_id=conta_id)
+    resultados = fetch_all(query)
+    if not resultados:
+        return "A loja não possui pedidos nos últimos 30 dias."
+
+    df = pd.DataFrame(resultados)
+    insights = gerar_insights_para_persona(df)
+    amostra = df.sample(n=min(5, len(df)), random_state=42).to_dict(orient="records")
+
+    # Enviar os dados brutos e sumarizados para a IA inferir o resto
+    return (
+        f"Loja: {conta_nome}\n"
+        f"Descrição: {conta_descricao}\n"
+        f"Atividade: {conta_atividade}\n"
         f"Estatísticas da loja:\n"
         f"- Ticket médio: R$ {insights['ticket_medio_produtos']}\n"
         f"- Produtos mais vendidos: {[p[0] for p in insights['produtos_mais_vendidos']]}\n"
